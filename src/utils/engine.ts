@@ -286,21 +286,36 @@ function pairTargetFromTop<K extends string>(top: RankedScore<K>[], pairMap: Rec
   return pairMap[[a, b].sort().join("|")];
 }
 
-function buildClosePairs(result: {
-  mbtiTop3: MBTIMatch[];
-  enneagramTop3: RankedScore<EnneagramType>[];
-  instinctStacking: Instinct[];
-  disc: RankedScore<DISCType>[];
-  riasecTop3: RankedScore<RIASECType>[];
-  attachment: RankedScore<AttachmentKey>[];
-  conflictStyle: RankedScore<ConflictStyle>[];
-  apPositionRanking: RankedScore<APPositionKey>[];
-  functionRanking: RankedScore<CognitiveFunction>[];
-}): ClosePair[] {
+function buildClosePairs(
+  result: {
+    mbtiTop3: MBTIMatch[];
+    enneagramTop3: RankedScore<EnneagramType>[];
+    instinctStacking: Instinct[];
+    disc: RankedScore<DISCType>[];
+    riasecTop3: RankedScore<RIASECType>[];
+    attachment: RankedScore<AttachmentKey>[];
+    conflictStyle: RankedScore<ConflictStyle>[];
+    apPositionRanking: RankedScore<APPositionKey>[];
+    functionRanking: RankedScore<CognitiveFunction>[];
+  },
+  answeredQuestions: string[],
+  bank: Question[]
+): ClosePair[] {
   const pairs: ClosePair[] = [];
+
+  const isTargetAnswered = (target: string): boolean => {
+    const questionsForTarget = bank.filter(
+      (q) => q.phase === "tie-break" && (q.tieBreakerFor?.includes(target) || q.target === target)
+    );
+    return questionsForTarget.some((q) => answeredQuestions.includes(q.id));
+  };
+
   const mbtiGap = Math.abs((result.mbtiTop3[0]?.fitScore ?? 0) - (result.mbtiTop3[1]?.fitScore ?? 0));
   const mbtiTarget = inferMBTITieTarget(result.mbtiTop3[0]?.type, result.mbtiTop3[1]?.type);
-  if (mbtiTarget && shouldAskTieBreak(mbtiGap, 8)) pairs.push({ target: mbtiTarget, gap: mbtiGap, reason: "Dua kandidat MBTI utama dekat.", priority: 95 });
+  const mbtiAnswered = mbtiTarget ? isTargetAnswered(mbtiTarget) : false;
+  if (mbtiTarget && (shouldAskTieBreak(mbtiGap, 8) || mbtiAnswered)) {
+    pairs.push({ target: mbtiTarget, gap: mbtiGap, reason: "Dua kandidat MBTI utama dekat.", priority: 95 });
+  }
 
   const enneaPairMap: Record<string, string> = {
     "4|6": "Enneagram 4 vs 6",
@@ -311,34 +326,60 @@ function buildClosePairs(result: {
   };
   const enneaTarget = pairTargetFromTop(result.enneagramTop3, enneaPairMap);
   const enneaGap = Math.abs((result.enneagramTop3[0]?.score ?? 0) - (result.enneagramTop3[1]?.score ?? 0));
-  if (enneaTarget && shouldAskTieBreak(enneaGap, result.enneagramTop3[0]?.evidenceCount ?? 0)) pairs.push({ target: enneaTarget, gap: enneaGap, reason: "Dua motif Enneagram utama dekat.", priority: 90 });
+  const enneaAnswered = enneaTarget ? isTargetAnswered(enneaTarget) : false;
+  if (enneaTarget && (shouldAskTieBreak(enneaGap, result.enneagramTop3[0]?.evidenceCount ?? 0) || enneaAnswered)) {
+    pairs.push({ target: enneaTarget, gap: enneaGap, reason: "Dua motif Enneagram utama dekat.", priority: 90 });
+  }
 
   const instinctKey = [...result.instinctStacking.slice(0, 2)].sort().join("|");
   const instinctMap: Record<string, string> = { "sp|sx": "sp vs sx", "so|sp": "sp vs so", "so|sx": "sx vs so" };
-  if (instinctMap[instinctKey]) pairs.push({ target: instinctMap[instinctKey], gap: 5, reason: "Dua insting utama perlu dibedakan.", priority: 74 });
+  const instinctTarget = instinctMap[instinctKey];
+  const instinctAnswered = instinctTarget ? isTargetAnswered(instinctTarget) : false;
+  if (instinctTarget) {
+    pairs.push({ target: instinctTarget, gap: 5, reason: "Dua insting utama perlu dibedakan.", priority: 74 });
+  }
 
   const discTarget = pairTargetFromTop(result.disc, { "C|D": "DISC D vs C", "I|S": "DISC I vs S" });
   const discGap = Math.abs((result.disc[0]?.score ?? 0) - (result.disc[1]?.score ?? 0));
-  if (discTarget && shouldAskTieBreak(discGap, result.disc[0]?.evidenceCount ?? 0)) pairs.push({ target: discTarget, gap: discGap, reason: "Dua gaya DISC dekat.", priority: 70 });
+  const discAnswered = discTarget ? isTargetAnswered(discTarget) : false;
+  if (discTarget && (shouldAskTieBreak(discGap, result.disc[0]?.evidenceCount ?? 0) || discAnswered)) {
+    pairs.push({ target: discTarget, gap: discGap, reason: "Dua gaya DISC dekat.", priority: 70 });
+  }
 
-  const riasecTarget = pairTargetFromTop(result.riasecTop3, { "Artistic|Investigative": "RIASEC Artistic vs Investigative", "Enterprising|Social": "RIASEC Social vs Enterprising" });
+  const riasecTarget = pairTargetFromTop(result.riasecTop3, {
+    "Artistic|Investigative": "RIASEC Artistic vs Investigative",
+    "Enterprising|Social": "RIASEC Social vs Enterprising",
+  });
   const riasecGap = Math.abs((result.riasecTop3[0]?.score ?? 0) - (result.riasecTop3[1]?.score ?? 0));
-  if (riasecTarget && shouldAskTieBreak(riasecGap, result.riasecTop3[0]?.evidenceCount ?? 0)) pairs.push({ target: riasecTarget, gap: riasecGap, reason: "Dua minat tugas RIASEC dekat.", priority: 68 });
+  const riasecAnswered = riasecTarget ? isTargetAnswered(riasecTarget) : false;
+  if (riasecTarget && (shouldAskTieBreak(riasecGap, result.riasecTop3[0]?.evidenceCount ?? 0) || riasecAnswered)) {
+    pairs.push({ target: riasecTarget, gap: riasecGap, reason: "Dua minat tugas RIASEC dekat.", priority: 68 });
+  }
 
   const attachmentTarget = pairTargetFromTop(result.attachment, {
     "avoidant-leaning|secure-but-private": "avoidant-leaning vs secure-but-private",
     "anxious-leaning|secure-leaning": "anxious-leaning vs high-Fe concern",
   });
-  if (attachmentTarget) pairs.push({ target: attachmentTarget, gap: 6, reason: "Dua pola kedekatan perlu dibaca lebih halus.", priority: 66 });
+  const attachmentAnswered = attachmentTarget ? isTargetAnswered(attachmentTarget) : false;
+  if (attachmentTarget && (attachmentAnswered || Math.abs((result.attachment[0]?.score ?? 0) - (result.attachment[1]?.score ?? 0)) <= 8)) {
+    pairs.push({ target: attachmentTarget, gap: 6, reason: "Dua pola kedekatan perlu dibaca lebih halus.", priority: 66 });
+  }
 
   const conflictTarget = pairTargetFromTop(result.conflictStyle, { "avoidant|delayed-repair": "conflict avoiding vs delayed-repair" });
-  if (conflictTarget) pairs.push({ target: conflictTarget, gap: 6, reason: "Dua bentuk diam dalam konflik bisa tampak mirip.", priority: 64 });
+  const conflictAnswered = conflictTarget ? isTargetAnswered(conflictTarget) : false;
+  if (conflictTarget && (conflictAnswered || Math.abs((result.conflictStyle[0]?.score ?? 0) - (result.conflictStyle[1]?.score ?? 0)) <= 8)) {
+    pairs.push({ target: conflictTarget, gap: 6, reason: "Dua bentuk diam dalam konflik bisa tampak mirip.", priority: 64 });
+  }
 
   const apTop = result.apPositionRanking[0]?.key;
   const apSecond = result.apPositionRanking[1]?.key;
   const apKey = apTop && apSecond ? [apTop, apSecond].sort().join("|") : "";
   const apMap: Record<string, string> = { "1V|3V": "AP 1V vs 3V", "1L|2L": "AP 2L vs 1L", "3E|neuroticism": "AP 3E vs high neuroticism" };
-  if (apMap[apKey]) pairs.push({ target: apMap[apKey], gap: 5, reason: "Posisi AP/PY utama masih berdekatan.", priority: 62 });
+  const apTarget = apMap[apKey];
+  const apAnswered = apTarget ? isTargetAnswered(apTarget) : false;
+  if (apTarget && (apAnswered || Math.abs((result.apPositionRanking[0]?.score ?? 0) - (result.apPositionRanking[1]?.score ?? 0)) <= 8)) {
+    pairs.push({ target: apTarget, gap: 5, reason: "Posisi AP/PY utama masih berdekatan.", priority: 62 });
+  }
 
   const functionTarget = pairTargetFromTop(result.functionRanking, {
     "Ni|Si": "Ni vs Si",
@@ -349,7 +390,38 @@ function buildClosePairs(result: {
     "Si|Te": "Si vs Te",
   });
   const functionGap = Math.abs((result.functionRanking[0]?.score ?? 0) - (result.functionRanking[1]?.score ?? 0));
-  if (functionTarget && shouldAskTieBreak(functionGap, result.functionRanking[0]?.evidenceCount ?? 0)) pairs.push({ target: functionTarget, gap: functionGap, reason: "Dua fungsi kognitif utama dekat.", priority: 60 });
+  const functionAnswered = functionTarget ? isTargetAnswered(functionTarget) : false;
+  if (functionTarget && (shouldAskTieBreak(functionGap, result.functionRanking[0]?.evidenceCount ?? 0) || functionAnswered)) {
+    pairs.push({ target: functionTarget, gap: functionGap, reason: "Dua fungsi kognitif utama dekat.", priority: 60 });
+  }
+
+  // Double check any manual answered tie-break targets: guarantee they are always in close pairs so they never disappear
+  for (const qId of answeredQuestions) {
+    const q = bank.find((x) => x.id === qId);
+    if (q && q.phase === "tie-break") {
+      const tgt = q.target;
+      if (tgt && !pairs.some((p) => p.target === tgt)) {
+        pairs.push({
+          target: tgt,
+          gap: 0,
+          reason: "Kombinasi pembeda tambahan.",
+          priority: 50,
+        });
+      }
+      if (q.tieBreakerFor) {
+        for (const t of q.tieBreakerFor) {
+          if (!pairs.some((p) => p.target === t)) {
+            pairs.push({
+              target: t,
+              gap: 0,
+              reason: "Kombinasi pembeda tambahan.",
+              priority: 50,
+            });
+          }
+        }
+      }
+    }
+  }
 
   return pairs;
 }
@@ -437,7 +509,7 @@ export function calculateResults(raw: RawScoreResult, bank: Question[]): Results
     apPositionRanking,
     functionRanking,
   };
-  const tieBreakSuggestions = buildTieBreakSuggestions(buildClosePairs(preliminary), bank);
+  const tieBreakSuggestions = buildTieBreakSuggestions(buildClosePairs(preliminary, raw.answeredQuestions, bank), bank);
   const fairnessWarnings = runFairnessCheck(raw, bank, {
     mbtiGap,
     enneagramGap,

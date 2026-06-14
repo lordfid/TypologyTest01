@@ -36,8 +36,13 @@ import {
   Shield,
   Heart,
   Briefcase,
-  PenTool
+  PenTool,
+  Share
 } from "lucide-react";
+
+import DeepDiagnosticsHub from "./components/DeepDiagnosticsHub";
+import CalculationTransparency from "./components/CalculationTransparency";
+import StoryShareModal from "./components/StoryShareModal";
 
 export default function App() {
   // Test State
@@ -48,6 +53,9 @@ export default function App() {
   
   // Custom Tie-Breaker Active state
   const [activeTieBreakId, setActiveTieBreakId] = useState<string | null>(null);
+
+  // Social Share Overlay state
+  const [showStoryShare, setShowStoryShare] = useState(false);
 
   // Load progress on mount
   useEffect(() => {
@@ -180,6 +188,7 @@ export default function App() {
     setAnswers([]);
     setCurrentQuestionIndex(0);
     setActiveTieBreakId(null);
+    setShowStoryShare(false);
     setCurrentStep("landing");
     clearSavedProgress();
   };
@@ -433,6 +442,26 @@ export default function App() {
               </p>
             </div>
 
+            {/* Premium Social Story Share Card banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-emerald-950 text-white rounded-xl p-5 shadow-md border border-stone-850">
+              <div>
+                <h4 className="font-serif text-lg font-bold text-stone-100 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
+                  Pajang Peta Jiwa ke Story Instagram / TikTok!
+                </h4>
+                <p className="text-[11px] text-stone-300 font-light mt-1 max-w-xl leading-relaxed">
+                  Desain visual 9:16 premium telah disusun otomatis dari kombinasi kognitif batin Anda. Klik untuk unduh gambar batin atau salin teks ringkasan untuk pajangan feed.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowStoryShare(true)}
+                className="bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-stone-950 transition-all font-bold text-xs tracking-wider uppercase px-5 py-3 rounded-lg flex items-center justify-center gap-2 cursor-pointer shadow-md"
+              >
+                <Share className="w-4 h-4" />
+                Buat Story Card
+              </button>
+            </div>
+
             {/* Dynamic Interactive Tie-Breaker suggestor bar */}
             {resultsSummary.tieBreakSuggestions.length > 0 && (
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 sm:p-6 shadow-sm">
@@ -451,30 +480,53 @@ export default function App() {
                     <div className="pt-2 grid gap-3 max-w-2xl">
                       {resultsSummary.tieBreakSuggestions.map((sug) => {
                         const isThisActive = activeTieBreakId === sug.id;
+                        const isAnswered = sug.questionIds.some((qId) => answers.some((ans) => ans.questionId === qId));
+
                         return (
-                          <div key={sug.id} className="bg-white/80 rounded-lg p-3 border border-amber-200/60 text-left">
+                          <div
+                            key={sug.id}
+                            className={`rounded-lg p-3.5 text-left transition-all border ${
+                              isAnswered
+                                ? "border-emerald-300 bg-emerald-50/20 shadow-xs"
+                                : "bg-white/85 border-amber-250/70"
+                            }`}
+                          >
                             <div className="flex justify-between items-center flex-wrap gap-2 mb-2">
-                              <span className="text-xs font-semibold text-amber-950">Target Pembeda: {sug.target}</span>
+                              <span className="text-xs font-semibold text-stone-900 flex items-center gap-1.5">
+                                Target Pembeda: {sug.target}
+                                {isAnswered && (
+                                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    <Check className="w-3 h-3 text-emerald-700" />
+                                    TERJAWAB
+                                  </span>
+                                )}
+                              </span>
                               <button
                                 onClick={() => setActiveTieBreakId(isThisActive ? null : sug.id)}
-                                className="bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-semibold tracking-wide uppercase px-3 py-1.5 rounded transition cursor-pointer"
+                                className={`text-[10px] font-semibold tracking-wide uppercase px-3 py-1.5 rounded transition cursor-pointer ${
+                                  isThisActive
+                                    ? "bg-stone-500 hover:bg-stone-600 text-white"
+                                    : isAnswered
+                                      ? "bg-emerald-700 hover:bg-emerald-800 text-white"
+                                      : "bg-amber-700 hover:bg-amber-800 text-white"
+                                }`}
                               >
-                                {isThisActive ? "Sembunyikan" : "Jawab Pertanyaan"}
+                                {isThisActive ? "Sembunyikan" : isAnswered ? "Edit Jawaban" : "Jawab Pertanyaan"}
                               </button>
                             </div>
-                            <p className="text-xs text-amber-900 font-light">{sug.reason}</p>
+                            <p className="text-xs text-stone-600 font-light leading-relaxed">{sug.reason}</p>
 
                             {/* Active Tie-break Inline Quiz rendering */}
                             {isThisActive && (
-                              <div className="mt-4 border-t border-amber-200/50 pt-4 space-y-4">
+                              <div className="mt-4 border-t border-stone-200/50 pt-4 space-y-4">
                                 {sug.questionIds.map((qId) => {
                                   // Locate the actual question in the tie-break questions bank
                                   const q = tieBreakQuestions.find((tb) => tb.id === qId);
                                   if (!q) return null;
                                   const selectedRecord = answers.find((ans) => ans.questionId === q.id);
                                   return (
-                                    <div key={q.id} className="bg-stone-50 p-3.5 rounded border border-stone-200">
-                                      <h5 className="text-xs font-medium text-stone-850 mb-2.5">
+                                    <div key={q.id} className="bg-white p-3.5 rounded border border-stone-250 shadow-xs">
+                                      <h5 className="text-xs font-medium text-stone-850 mb-2.5 leading-relaxed">
                                         Pertanyaan: {q.text}
                                       </h5>
                                       <div className="grid gap-2">
@@ -484,13 +536,13 @@ export default function App() {
                                             onClick={() => handleSelectOption(q.id, opt.id)}
                                             className={`w-full text-left p-2.5 rounded border text-xs leading-relaxed transition cursor-pointer flex justify-between items-center ${
                                               selectedRecord?.optionId === opt.id
-                                                ? "border-amber-700 bg-amber-50/40 text-amber-950 font-medium"
-                                                : "border-stone-200 hover:border-stone-350 bg-white text-stone-700"
+                                                ? "border-emerald-600 bg-emerald-50/30 text-emerald-950 font-medium"
+                                                : "border-stone-200 hover:border-stone-350 bg-stone-50 text-stone-700 hover:bg-white"
                                             }`}
                                           >
                                             <span>{opt.text}</span>
                                             {selectedRecord?.optionId === opt.id && (
-                                              <Check className="w-4 h-4 text-amber-700 shrink-0" />
+                                              <Check className="w-4 h-4 text-emerald-750 shrink-0" />
                                             )}
                                           </button>
                                         ))}
@@ -861,6 +913,10 @@ export default function App() {
               </div>
             </div>
 
+            {/* Deep Exploration Hub and Calculation Transparency */}
+            <DeepDiagnosticsHub resultsSummary={resultsSummary} />
+            <CalculationTransparency rawResults={rawResults} resultsSummary={resultsSummary} />
+
             {/* Ethical Notes and Refleksi */}
             <div className="bg-stone-100 rounded-xl p-6 border border-stone-200" id="results-reflection">
               <h4 className="font-serif text-sm font-semibold text-stone-900 mb-4 flex items-center gap-2">
@@ -887,6 +943,13 @@ export default function App() {
                 <RotateCcw className="w-4 h-4" /> Ulangi Tes Lengkap
               </button>
             </div>
+
+            {showStoryShare && (
+              <StoryShareModal
+                resultsSummary={resultsSummary}
+                onClose={() => setShowStoryShare(false)}
+              />
+            )}
 
           </div>
         )}
