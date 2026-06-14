@@ -1,0 +1,6 @@
+{
+  "name": "Tes Kepribadian Mendalam",
+  "description": "Sebuah sistem penilaian kepribadian yang komprehensif mencakup 60+ dimensi perilaku, kognisi, stres, relasi, bimbingan tie-break, dan kontrol bias.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
